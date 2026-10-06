@@ -23,6 +23,7 @@ export type PendingActivity = {
   title: string
   /** 预计时长（小时） */
   day: number
+  aaaTopicId: string | null
 }
 
 export type ActivityDragPayload = {
@@ -49,6 +50,7 @@ export type TodoItem = {
   dayIndex: number
   startedAtMs?: number
   completedAtMs?: number
+  aaaTopicId: string | null
   subtasks?: TodoItem[]
 }
 
@@ -66,6 +68,7 @@ function mapTodo(t: WeekPlanTodo): TodoItem {
     dayIndex: t.dayIndex,
     startedAtMs: t.startedAtMs,
     completedAtMs: t.completedAtMs,
+    aaaTopicId: t.aaaTopicId,
   }
 }
 
@@ -74,6 +77,7 @@ function mapPending(p: WeekPlanPendingActivity): PendingActivity {
     id: p.id,
     title: p.title,
     day: p.day,
+    aaaTopicId: p.aaaTopicId,
   }
 }
 
@@ -117,13 +121,14 @@ type TodoStore = {
   }) => Promise<void>
   addTodoTree: (input: {
     dayIndex: number
-    parent?: { title: string }
+    parent?: { title: string; aaaTopicId?: string | null }
     subtasks?: Array<{ title: string; estimatedHours: number }>
-    root?: { title: string; estimatedHours: number }
+    root?: { title: string; estimatedHours: number; aaaTopicId?: string | null }
   }) => Promise<void>
   addPending: (input: {
     title: string
     estimatedHours?: number
+    aaaTopicId?: string | null
   }) => Promise<void>
   updatePending: (
     id: string,
@@ -139,6 +144,7 @@ type TodoStore = {
     content?: string
     status?: TodoStatus
     kind?: TodoKind
+    aaaTopicId?: string | null
     version: number
   }) => Promise<void>
   addSubtask: (parentId: string, input: { title: string; description?: string }) => Promise<void>

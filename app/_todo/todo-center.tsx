@@ -25,7 +25,7 @@ import {
   type ActivityDragPayload,
   type TodoItem,
 } from './todo-store'
-import { formatWeekStartClient } from './week-plan-api'
+import { apiUpdateTodo, formatWeekStartClient } from './week-plan-api'
 import { shiftWeekStart, formatDateKey } from '@/backstage/week-plan/week-utils'
 import {
   TODO_KIND_LABEL,
@@ -463,6 +463,22 @@ type TodoDetailFields = {
   status: TodoItem['status']
   version: number
   kind?: TodoKind
+  aaaTopicId?: string | null
+}
+
+type AaaTopicOption = { id: string; title: string; status: string }
+
+function useActiveWorking(open: boolean) {
+  const [topics, setTopics] = useState<AaaTopicOption[]>([])
+  useEffect(() => {
+    if (!open) return
+    let alive = true
+    fetch('/api/aaa/topics').then((res) => res.json()).then((body) => {
+      if (alive && body.success && Array.isArray(body.data)) setTopics(body.data.filter((topic: AaaTopicOption) => topic.status === 'working'))
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [open])
+  return topics
 }
 
 function TodoDetailDialog({
@@ -488,6 +504,8 @@ function TodoDetailDialog({
   const [content, setContent] = useState('')
   const [status, setStatus] = useState<TodoItem['status']>('pending')
   const [kind, setKind] = useState<TodoKind>('action')
+  const [aaaTopicId, setAaaTopicId] = useState<string | null>(null)
+  const activeWorkings = useActiveWorking(open)
   const [subtaskTitle, setSubtaskTitle] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -501,6 +519,7 @@ function TodoDetailDialog({
     setContent(item.content)
     setStatus(item.status)
     setKind(item.kind ?? 'action')
+    setAaaTopicId(item.aaaTopicId ?? null)
     setSubtaskTitle('')
     setError(null)
     setConfirmDelete(false)
@@ -513,7 +532,7 @@ function TodoDetailDialog({
     setError(null)
     try {
       await updateTodo(item.id, {
-        title: title.trim(), description, content, status, kind,
+        title: title.trim(), description, content, status, kind, aaaTopicId,
         version: item.version,
       })
       setMode('view')
@@ -583,6 +602,7 @@ function TodoDetailDialog({
                   setContent(item.content)
                   setStatus(item.status)
                   setKind(item.kind ?? 'action')
+                  setAaaTopicId(item.aaaTopicId ?? null)
                   setError(null)
                 }
                 setConfirmDelete(false)
@@ -649,6 +669,18 @@ function TodoDetailDialog({
             ) : (
               <select id="todo-kind" value={kind} onChange={(event) => setKind(event.target.value as TodoKind)} className="h-10 rounded-md border border-neutral-200 bg-background px-3 text-sm dark:border-neutral-800">
                 {Object.entries(TODO_KIND_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            )}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="todo-aaa-topic">Active Working</Label>
+            {viewing ? (
+              <p className="text-sm">{activeWorkings.find((topic) => topic.id === aaaTopicId)?.title ?? (aaaTopicId ? '此前关联的 Working 已结束' : '未关联')}</p>
+            ) : (
+              <select id="todo-aaa-topic" value={aaaTopicId ?? ''} onChange={(event) => setAaaTopicId(event.target.value || null)} className="h-10 rounded-md border border-neutral-200 bg-background px-3 text-sm dark:border-neutral-800">
+                <option value="">不关联</option>
+                {aaaTopicId && !activeWorkings.some((topic) => topic.id === aaaTopicId) && <option value={aaaTopicId}>此前关联的 Working 已结束</option>}
+                {activeWorkings.map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
               </select>
             )}
           </div>
@@ -729,9 +761,9 @@ function AddTodoDialog({
   onOpenChange: (open: boolean) => void
   dayLabel: string
   onSubmitTree: (input: {
-    parent?: { title: string }
+    parent?: { title: string; aaaTopicId?: string | null }
     subtasks?: Array<{ title: string; estimatedHours: number }>
-    root?: { title: string; estimatedHours: number }
+    root?: { title: string; estimatedHours: number; aaaTopicId?: string | null }
   }) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
@@ -1056,9 +1088,9 @@ function TodoList({
 
   const handleAddTodoTree = useCallback(
     (input: {
-      parent?: { title: string }
+      parent?: { title: string; aaaTopicId?: string | null }
       subtasks?: Array<{ title: string; estimatedHours: number }>
-      root?: { title: string; estimatedHours: number }
+      root?: { title: string; estimatedHours: number; aaaTopicId?: string | null }
     }) => addTodoTree({ ...input, dayIndex: activeDayIndex }),
     [activeDayIndex, addTodoTree]
   )
@@ -1624,9 +1656,9 @@ function WeeklyControlPanel({
   })
 
   const handleAddTodoTree = useCallback((input: {
-    parent?: { title: string }
+    parent?: { title: string; aaaTopicId?: string | null }
     subtasks?: Array<{ title: string; estimatedHours: number }>
-    root?: { title: string; estimatedHours: number }
+    root?: { title: string; estimatedHours: number; aaaTopicId?: string | null }
   }) => addTodoTree({ ...input, dayIndex: new Date().getDay() }), [addTodoTree])
 
   return (
@@ -1765,6 +1797,7 @@ export default function WeekPlanPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const insightsFromUrl = searchParams.get('panel') === 'insights'
+  const linkedTodoId = searchParams.get('todo')
 
   const weekStart = formatWeekStartClient(weekAnchor)
   const isLoading = useTodoStore((s) => s.isLoading)
@@ -1814,6 +1847,18 @@ export default function WeekPlanPage() {
       .catch(() => undefined)
       .finally(() => setTodosReady(true))
   }, [])
+
+  const closeLinkedTodo = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('todo')
+    router.replace(params.size ? `/?${params.toString()}` : '/', { scroll: false })
+  }, [router, searchParams])
+
+  const saveLinkedTodo = useCallback(async (id: string, input: Parameters<ReturnType<typeof useTodoStore.getState>['updateTodo']>[1]) => {
+    await apiUpdateTodo(id, input)
+    refreshAllTodos()
+    await loadWeek(weekStart)
+  }, [refreshAllTodos, loadWeek, weekStart])
 
   const refreshExecutionActivity = useCallback(() => {
     const from = new Date()
@@ -1946,6 +1991,13 @@ export default function WeekPlanPage() {
   return (
     <TagWorkspaceProvider>
     <div className="flex h-svh flex-col md:flex-row">
+      <TodoDetailDialog
+        item={linkedTodoId ? allTodos.find((todo) => todo.id === linkedTodoId) ?? null : null}
+        open={Boolean(linkedTodoId && allTodos.some((todo) => todo.id === linkedTodoId))}
+        onOpenChange={(open) => { if (!open) closeLinkedTodo() }}
+        updateTodo={saveLinkedTodo}
+        initialMode="view"
+      />
       {!phone && (
         <AppToolbar
           className="hidden md:flex"

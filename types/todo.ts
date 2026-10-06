@@ -173,6 +173,7 @@ export type Todo = {
   timeLinks?: TodoTimeLink[]
   tags?: Tag[]
   noteType: TodoNoteType
+  aaaTopicId: string | null
   version: number
   startedAt: string | null
   completedAt: string | null
@@ -200,6 +201,7 @@ export type CreateTodoInput = {
   tagIds?: string[]
   sortOrder?: number
   noteType?: TodoNoteType
+  aaaTopicId?: string | null
 }
 
 export type UpdateTodoInput = Partial<Omit<CreateTodoInput, 'parentId' | 'time'>> & {

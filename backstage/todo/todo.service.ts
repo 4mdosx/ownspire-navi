@@ -2,7 +2,7 @@ import 'server-only'
 import { nanoid } from 'nanoid'
 import { and, asc, desc, eq, inArray, isNull, like, or, type SQL } from 'drizzle-orm'
 import { getDatabase } from '@/backstage/db/database'
-import { todoTimeLinks, todos } from '@/backstage/db/schema'
+import { aaaTopics, todoTimeLinks, todos } from '@/backstage/db/schema'
 import { parseOutline, type OutlineDraft } from '@/lib/todo-outline'
 import { startTodoTimeSpan, stopTodoTimeSpan } from '@/backstage/todo/todo-time-span.service'
 import { setTodoTags, tagsForTodos } from '@/backstage/todo/tag.service'
@@ -24,6 +24,7 @@ type TodoRow = {
   estimatedMinutes: number; kind: string; version: number
   startedAt: string | null; completedAt: string | null
   createdAt: string; updatedAt: string; noteType?: string
+  aaaTopicId?: string | null
 }
 
 function mapTodo(row: TodoRow, timeLinks: TodoTimeLink[] = [], tags: Tag[] = []): Todo {
@@ -32,6 +33,7 @@ function mapTodo(row: TodoRow, timeLinks: TodoTimeLink[] = [], tags: Tag[] = [])
     status: STATUSES.has(row.status as TodoStatus) ? row.status as TodoStatus : 'pending',
     kind: isTodoKind(row.kind) ? row.kind : 'action',
     noteType: isTodoNoteType(row.noteType ?? '') ? row.noteType as TodoNoteType : 'user',
+    aaaTopicId: row.aaaTopicId ?? null,
     timeLinks,
     tags,
   }
@@ -115,6 +117,7 @@ export async function createTodo(input: CreateTodoInput): Promise<Todo> {
   const title = input.title.trim()
   if (!title) throw new Error('Todo title is required')
   const db = await getDatabase()
+  if (input.aaaTopicId) await requireActiveWorking(input.aaaTopicId)
   const parent = input.parentId ? await requireParent(input.parentId) : null
   const now = new Date().toISOString()
   const id = `todo-${Date.now()}-${nanoid(8)}`
@@ -123,6 +126,10 @@ export async function createTodo(input: CreateTodoInput): Promise<Todo> {
   const kind: TodoKind = input.kind ?? 'action'
   const noteType = kind === 'note' && input.noteType && NOTE_TYPES.has(input.noteType) ? input.noteType : 'user'
   const parentTodo = input.parentId ? await getTodo(input.parentId) : null
+  const inheritedTopicId = input.aaaTopicId === undefined ? parentTodo?.aaaTopicId : null
+  const aaaTopicId = input.aaaTopicId !== undefined
+    ? input.aaaTopicId
+    : inheritedTopicId && await isActiveWorking(inheritedTopicId) ? inheritedTopicId : null
   const time = normalizeTimeInput(input)
   if (parentTodo && kind !== 'note' && kind !== 'rest') {
     for (const link of parentTodo.timeLinks ?? []) {
@@ -144,6 +151,7 @@ export async function createTodo(input: CreateTodoInput): Promise<Todo> {
     estimatedMinutes: Math.max(0, Math.round(input.estimatedMinutes ?? 0)),
     kind,
     noteType,
+    aaaTopicId,
     version: 1,
     startedAt: status === 'active' ? now : null,
     completedAt: status === 'done' ? now : null,
@@ -192,6 +200,7 @@ export async function listTodos(input: {
   parentId?: string | null
   status?: TodoStatus; kind?: TodoKind; query?: string
   grain?: TimeGrain; date?: string
+  aaaTopicId?: string
 } = {}): Promise<Todo[]> {
   const db = await getDatabase()
   const filters: SQL[] = []
@@ -200,6 +209,7 @@ export async function listTodos(input: {
   }
   if (input.status) filters.push(eq(todos.status, input.status))
   if (input.kind) filters.push(eq(todos.kind, input.kind))
+  if (input.aaaTopicId) filters.push(eq(todos.aaaTopicId, input.aaaTopicId))
   if (input.query) {
     const pattern = `%${input.query}%`
     const search = or(
@@ -224,6 +234,7 @@ export async function listTodos(input: {
 
 export async function updateTodo(id: string, input: UpdateTodoInput): Promise<Todo> {
   const current = await getTodo(id)
+  if (input.aaaTopicId && input.aaaTopicId !== current.aaaTopicId) await requireActiveWorking(input.aaaTopicId)
   if (input.version != null && input.version !== current.version) {
     throw new Error(`Todo version conflict: expected ${input.version}, actual ${current.version}`)
   }
@@ -251,6 +262,7 @@ export async function updateTodo(id: string, input: UpdateTodoInput): Promise<To
     if (!NOTE_TYPES.has(input.noteType)) throw new Error(`Invalid note type: ${input.noteType}`)
     updates.noteType = input.noteType
   }
+  if (input.aaaTopicId !== undefined) updates.aaaTopicId = input.aaaTopicId || null
   const nextStatus = input.status != null && STATUSES.has(input.status) ? input.status : null
   const statusChanged = nextStatus != null && nextStatus !== current.status
   if (nextStatus != null) {
@@ -280,6 +292,16 @@ export async function updateTodo(id: string, input: UpdateTodoInput): Promise<To
   }
   if (input.tagIds != null) await setTodoTags(id, input.tagIds)
   return getTodo(id)
+}
+
+async function requireActiveWorking(topicId: string): Promise<void> {
+  if (!await isActiveWorking(topicId)) throw new Error('Todo 只能关联当前 Active Working')
+}
+
+async function isActiveWorking(topicId: string): Promise<boolean> {
+  const db = await getDatabase()
+  const [topic] = await db.select({ status: aaaTopics.status }).from(aaaTopics).where(eq(aaaTopics.id, topicId)).limit(1)
+  return topic?.status === 'working'
 }
 
 async function cascadeStatusToPendingDescendants(parentId: string, status: TodoStatus): Promise<void> {

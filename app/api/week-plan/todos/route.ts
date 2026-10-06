@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       const result = await createWeekPlanTodoTree({
         dayIndex,
         weekStart: String(weekStart),
-        parent: parent ? { title: String(parent.title ?? '') } : undefined,
+        parent: parent ? { title: String(parent.title ?? ''), aaaTopicId: parent.aaaTopicId ? String(parent.aaaTopicId) : null } : undefined,
         subtasks: Array.isArray(subtasks)
           ? subtasks.map((s: { title?: string; estimatedHours?: number }) => ({
               title: String(s.title ?? ''),
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
               title: String(root.title ?? ''),
               estimatedHours:
                 root.estimatedHours != null ? Number(root.estimatedHours) : 1,
+              aaaTopicId: root.aaaTopicId ? String(root.aaaTopicId) : null,
             }
           : undefined,
       })

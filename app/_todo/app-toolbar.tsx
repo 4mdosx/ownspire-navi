@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore, type ButtonHTMLAttributes } from 'react'
 import Link from 'next/link'
-import { CalendarDays, Moon, PanelLeft, Settings, Sun } from 'lucide-react'
+import { CalendarDays, Moon, PanelLeft, Settings, Sparkles, Sun } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getColorTheme, subscribeColorTheme, toggleColorTheme } from '@/lib/theme'
 import { FocusModeTool } from './todo-tags'
@@ -130,6 +130,15 @@ export function AppToolbar({
       </div>
 
       <div className="mt-auto flex w-10 flex-col items-center gap-0.5">
+        <Link
+          href="/aaa"
+          aria-label="AAA"
+          title="AAA"
+          className="flex w-10 flex-col items-center gap-1 rounded-md px-0.5 py-2 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Sparkles className="size-3.5" />
+          <span className="[writing-mode:vertical-rl] tracking-[0.2em]">AAA</span>
+        </Link>
         <ToolbarButton
           pressed={dark}
           onClick={toggleColorTheme}

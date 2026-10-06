@@ -115,6 +115,7 @@ export async function apiDeleteTodo(id: string): Promise<void> {
 export async function apiCreatePending(input: {
   title: string
   estimatedHours?: number
+  aaaTopicId?: string | null
 }): Promise<WeekPlanPendingActivity> {
   const res = await fetch('/api/week-plan/pending', {
     method: 'POST',
@@ -153,9 +154,9 @@ export async function apiDeletePending(id: string): Promise<void> {
 export async function apiCreateTodoTree(input: {
   dayIndex: number
   weekStart: string
-  parent?: { title: string }
+  parent?: { title: string; aaaTopicId?: string | null }
   subtasks?: Array<{ title: string; estimatedHours: number }>
-  root?: { title: string; estimatedHours: number }
+  root?: { title: string; estimatedHours: number; aaaTopicId?: string | null }
 }): Promise<CreateTodoTreeResult> {
   const res = await fetch('/api/week-plan/todos', {
     method: 'POST',
@@ -174,6 +175,7 @@ export async function apiUpdateTodo(
     content?: string
     status?: WeekPlanTodo['status']
     kind?: TodoKind
+    aaaTopicId?: string | null
     version: number
   }
 ): Promise<WeekPlanTodo> {

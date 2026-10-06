@@ -23,6 +23,7 @@ export const todos = sqliteTable('todos', {
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
   noteType: text('noteType').notNull().default('user'),
+  aaaTopicId: text('aaaTopicId'),
 })
 
 export const todoTimeLinks = sqliteTable('todo_time_links', {
@@ -91,4 +92,36 @@ export const focusModes = sqliteTable('focus_modes', {
   excludeTags: text('excludeTags').notNull().default('[]'),
   createdAt: text('createdAt').notNull(),
   updatedAt: text('updatedAt').notNull(),
+})
+
+export const aaaTopics = sqliteTable('aaa_topics', {
+  id: text('id').primaryKey(),
+  title: text('title').notNull(),
+  description: text('description').notNull().default(''),
+  links: text('links').notNull().default('[]'),
+  records: text('records').notNull().default('[]'),
+  status: text('status').notNull().default('pool'),
+  question: text('question').notNull().default(''),
+  why: text('why').notNull().default(''),
+  scope: text('scope').notNull().default(''),
+  notes: text('notes').notNull().default(''),
+  plan: text('plan').notNull().default('{}'),
+  reviewStartedAt: text('reviewStartedAt'),
+  workingStartedAt: text('workingStartedAt'),
+  plannedWeeks: integer('plannedWeeks'),
+  exitedAt: text('exitedAt'),
+  exitType: text('exitType'),
+  completionRating: text('completionRating'),
+  distinctions: text('distinctions').notNull().default('[]'),
+  createdAt: text('createdAt').notNull(),
+  updatedAt: text('updatedAt').notNull(),
+})
+
+export const aaaEntries = sqliteTable('aaa_entries', {
+  id: text('id').primaryKey(),
+  topicId: text('topicId').notNull().references(() => aaaTopics.id, { onDelete: 'cascade' }),
+  kind: text('kind').notNull().default('capture'),
+  content: text('content').notNull(),
+  week: integer('week'),
+  createdAt: text('createdAt').notNull(),
 })

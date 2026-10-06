@@ -26,7 +26,7 @@ import { closePhonePanel, openPhonePanel } from './phone-panel'
 import { useNoHover, usePhoneLayout } from './use-phone-layout'
 
 type Detail = { title: string; description: string; plannedMinutes: number; meta?: string; todoId?: string }
-type TodoPatch = { status?: TodoStatus; estimatedMinutes?: number; title?: string; description?: string }
+type TodoPatch = { status?: TodoStatus; estimatedMinutes?: number; title?: string; description?: string; aaaTopicId?: string | null }
 
 function WeekSwitcher({ weekStart, onChange }: { weekStart: string; onChange: (weekStart: string) => void }) {
   const currentWeek = formatWeekStartClient(new Date())
@@ -639,6 +639,8 @@ function TaskDetailPanel({
   onTagsChanged: () => void
 }) {
   const noteInputRef = useRef<HTMLTextAreaElement>(null)
+  const [activeWorking, setActiveWorking] = useState<{ id: string; title: string } | null>(null)
+  const [workingError, setWorkingError] = useState('')
   const title = selectedTodo?.title ?? selected.title
   const description = selectedTodo?.description ?? selected.description
 
@@ -651,6 +653,18 @@ function TaskDetailPanel({
   useEffect(() => {
     onNoteDraft('')
   }, [selected.todoId, onNoteDraft])
+
+  useEffect(() => {
+    if (!selectedTodo) return
+    let alive = true
+    fetch('/api/aaa/topics', { credentials: 'include' })
+      .then((response) => response.json())
+      .then((body) => {
+        if (alive && body.success) setActiveWorking(body.data.find((topic: { status: string }) => topic.status === 'working') ?? null)
+      })
+      .catch(() => { if (alive) setWorkingError('Working 信息加载失败') })
+    return () => { alive = false }
+  }, [selectedTodo?.id])
 
   return (
     <div className="mt-3">
@@ -680,6 +694,26 @@ function TaskDetailPanel({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <StatusPicker status={selectedTodo.status} onChange={(status) => void onPatchTodo(selectedTodo, { status })} />
           <TodoHashtags todo={selectedTodo} onChanged={onTagsChanged} />
+        </div>
+      )}
+      {selectedTodo && selectedTodo.kind !== 'note' && (
+        <div className="mt-3 rounded-md border p-2">
+          <label htmlFor="detail-active-working" className="text-xs font-medium">关联 Active Working</label>
+          <select
+            id="detail-active-working"
+            className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs"
+            value={selectedTodo.aaaTopicId ?? ''}
+            onChange={(event) => {
+              setWorkingError('')
+              void onPatchTodo(selectedTodo, { aaaTopicId: event.target.value || null }).catch((cause) => setWorkingError(cause instanceof Error ? cause.message : '关联失败'))
+            }}
+          >
+            <option value="">不关联</option>
+            {selectedTodo.aaaTopicId && selectedTodo.aaaTopicId !== activeWorking?.id && <option value={selectedTodo.aaaTopicId}>此前关联的 Working 已结束</option>}
+            {activeWorking && <option value={activeWorking.id}>{activeWorking.title}</option>}
+          </select>
+          {!activeWorking && <p className="mt-1 text-[10px] text-muted-foreground">当前没有 Active Working。</p>}
+          {workingError && <p className="mt-1 text-[10px] text-destructive">{workingError}</p>}
         </div>
       )}
       {selected.meta && <p className="mt-2 text-[10px] text-muted-foreground">{selected.meta}</p>}

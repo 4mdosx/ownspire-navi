@@ -8,6 +8,7 @@ export type WeekPlanPendingActivity = {
   title: string
   /** 预计时长（小时） */
   day: number
+  aaaTopicId: string | null
 }
 
 export type WeekPlanTodo = {
@@ -28,6 +29,7 @@ export type WeekPlanTodo = {
   completedAtMs?: number
   createdAt: string
   updatedAt: string
+  aaaTopicId: string | null
 }
 
 export function toWeekPlanTodo(todo: Todo): WeekPlanTodo {
@@ -47,15 +49,16 @@ export function toWeekPlanTodo(todo: Todo): WeekPlanTodo {
     completedAtMs: todo.completedAt ? Date.parse(todo.completedAt) : undefined,
     createdAt: todo.createdAt,
     updatedAt: todo.updatedAt,
+    aaaTopicId: todo.aaaTopicId,
   }
 }
 
 export type CreateTodoTreeInput = {
   dayIndex: number
   weekStart: string
-  parent?: { title: string }
+  parent?: { title: string; aaaTopicId?: string | null }
   subtasks?: Array<{ title: string; estimatedHours: number }>
-  root?: { title: string; estimatedHours: number }
+  root?: { title: string; estimatedHours: number; aaaTopicId?: string | null }
 }
 
 export type CreateTodoTreeResult = {

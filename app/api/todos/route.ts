@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
       parentId: parent === 'root' ? null : parent ?? undefined,
       grain: grain && isTimeGrain(grain) ? grain : undefined,
       date: params.get('date') || undefined,
+      aaaTopicId: params.get('aaaTopicId') || undefined,
     })
     return NextResponse.json({ success: true, data: todos })
   } catch (error) {

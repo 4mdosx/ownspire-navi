@@ -8,13 +8,14 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { title, estimatedHours } = body
+    const { title, estimatedHours, aaaTopicId } = body
     if (!title || typeof title !== 'string') {
       return NextResponse.json({ error: 'title is required' }, { status: 400 })
     }
     const pending = await createPendingActivity({
       title,
       estimatedHours: estimatedHours != null ? Number(estimatedHours) : undefined,
+      aaaTopicId: aaaTopicId ? String(aaaTopicId) : null,
     })
     return NextResponse.json({ success: true, pending })
   } catch (error) {

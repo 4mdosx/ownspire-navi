@@ -13,7 +13,7 @@ import { toWeekPlanTodo } from '@/types/week-plan'
 import type { Todo } from '@/types/todo'
 
 function toPending(todo: Todo): WeekPlanPendingActivity {
-  return { id: todo.id, title: todo.title, day: todo.estimatedMinutes / 60 }
+  return { id: todo.id, title: todo.title, day: todo.estimatedMinutes / 60, aaaTopicId: todo.aaaTopicId }
 }
 
 export async function getWeekPlanData(weekStart: string): Promise<WeekPlanData> {
@@ -26,6 +26,7 @@ export async function getWeekPlanData(weekStart: string): Promise<WeekPlanData> 
 export async function createWeekPlanTodo(input: {
   title: string; description?: string; content?: string; dayIndex: number; weekStart: string
   estimatedHours?: number; status?: TodoStatus; startedAtMs?: number
+  aaaTopicId?: string | null
 }): Promise<WeekPlanTodo> {
   const todo = await createTodo({
     title: input.title,
@@ -33,6 +34,7 @@ export async function createWeekPlanTodo(input: {
     content: input.content,
     estimatedMinutes: normalizeEstimatedHours(input.estimatedHours ?? 1) * 60,
     status: input.status,
+    aaaTopicId: input.aaaTopicId,
     time: [
       { grain: 'week', date: input.weekStart },
       { grain: 'day', date: dateFromWeekDay(input.weekStart, input.dayIndex) },
@@ -55,6 +57,7 @@ export async function createWeekPlanTodoTree(input: CreateTodoTreeInput): Promis
   ]
   const parent = await createTodo({
     title: input.parent.title,
+    aaaTopicId: input.parent.aaaTopicId,
     estimatedMinutes: subtasks.reduce((sum, item) => sum + normalizeEstimatedHours(item.estimatedHours) * 60, 0),
     time,
   })
@@ -64,6 +67,7 @@ export async function createWeekPlanTodoTree(input: CreateTodoTreeInput): Promis
       const item = subtasks[index]
       children.push(await createTodo({
         title: item.title, parentId: parent.id, sortOrder: index,
+        aaaTopicId: input.parent.aaaTopicId,
         estimatedMinutes: normalizeEstimatedHours(item.estimatedHours) * 60,
         time,
       }))
@@ -121,11 +125,12 @@ export async function deleteWeekPlanTodo(id: string): Promise<void> {
 }
 
 export async function createPendingActivity(input: {
-  title: string; estimatedHours?: number
+  title: string; estimatedHours?: number; aaaTopicId?: string | null
 }): Promise<WeekPlanPendingActivity> {
   return toPending(await createTodo({
     title: input.title,
     estimatedMinutes: normalizeEstimatedHours(input.estimatedHours ?? 1) * 60,
+    aaaTopicId: input.aaaTopicId,
   }))
 }
 

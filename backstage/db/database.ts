@@ -7,10 +7,19 @@ import { migrate } from 'drizzle-orm/node-sqlite/migrator'
 
 export type AppDatabase = NodeSQLiteDatabase
 
-/** `.env` 里的 `DB_FILE_NAME=file:local.db` 带 URI 前缀，`node:sqlite` 不认。 */
-const dbPath = process.env.DB_FILE_NAME
-  ? process.env.DB_FILE_NAME.replace(/^file:/, '')
-  : path.join(process.cwd(), 'local.db')
+/**
+ * `.env` 里的 `DB_FILE_NAME=file:local.db` 带 URI 前缀，`node:sqlite` 不认。
+ *
+ * ⚠️ **路径必须在**调用时**解析**，不能在模块顶层算好（`const dbPath = ...`）。
+ * ESM 的 import 先于任何语句执行（tsx 转 CJS 也一样，require 被提到模块顶部），
+ * 于是「顶部写 `process.env.DB_FILE_NAME = ...` 再 import」的脚本会在赋值
+ * **之前**就让 database.ts 把路径定死 —— 脚本静默跑在生产库上（shrine
+ * 2026-10-10 发现，库里躺着 11 条验证脚本建的测试素材）。
+ */
+function dbPath(): string {
+  const raw = process.env.DB_FILE_NAME
+  return raw ? raw.replace(/^file:/, '') : path.join(process.cwd(), 'local.db')
+}
 
 /**
  * ⚠️ 连接**必须是可重开的**，不能是模块级常量。
@@ -28,7 +37,7 @@ let connection: DatabaseSync | null = null
 
 function sqlite(): DatabaseSync {
   if (connection) return connection
-  const opened = new DatabaseSync(dbPath)
+  const opened = new DatabaseSync(dbPath())
   // ⭐ 连接建立时立刻设这几项 —— 它们是**连接级**设置，不是查询级。
   //
   // ⚠️ `foreign_keys = ON` **必须在这里设**。SQLite 默认不检查外键，而 todos
@@ -83,7 +92,7 @@ let schemaReady = false
  */
 async function ensureSchema(): Promise<void> {
   if (schemaReady) return
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+  fs.mkdirSync(path.dirname(dbPath()), { recursive: true })
   migrate(db(), { migrationsFolder: migrationsFolder() })
   schemaReady = true
 }
@@ -110,5 +119,5 @@ export async function closeDatabase(): Promise<void> {
 
 /** 容器启动前先探测数据库可用 —— /healthz 要返回这个。 */
 export function databaseFile(): string {
-  return dbPath
+  return dbPath()
 }

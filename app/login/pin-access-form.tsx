@@ -77,12 +77,20 @@ export default function PinAccessForm({
               <CardTitle className="text-center text-2xl">
                 {mode === 'setup' ? '设置访问 PIN' : '输入 PIN'}
               </CardTitle>
-              <CardDescription className="text-center">
-                {mode === 'setup'
-                  ? `首次使用请设置 ${PIN_LENGTH} 位 PIN。解锁后当天有效，次日需再输入。`
-                  : `输入 ${PIN_LENGTH} 位 PIN。解锁后当天有效。`}
-              </CardDescription>
-            </CardHeader>
+<CardDescription className="text-center">
+              {mode === 'setup'
+                ? `首次使用请设置 ${PIN_LENGTH} 位 PIN。解锁后当天有效，次日需再输入。`
+                : `输入 ${PIN_LENGTH} 位 PIN。解锁后当天有效。`}
+            </CardDescription>
+            {/*
+              ⚠️ 退避规则要写在界面上：**指数退避下被锁定是正常结果，不是故障**。
+              不说的话用户只会以为「PIN 不正确」是自己输错了，于是反复重试 ——
+              而每次重试都会被拒得更久，最终锁死 24 小时。
+            */}
+            <p className="text-center text-[11px] leading-relaxed text-muted-foreground">
+              PIN 输错会触发指数退避：越错等得越久，最长锁 24 小时。
+            </p>
+          </CardHeader>
             <CardContent className="space-y-6">
               {mode === 'setup' ? (
                 <>

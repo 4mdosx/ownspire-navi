@@ -38,6 +38,11 @@ yarn.lock
 db-data.json
 local.db
 local.remote.db
+# ⚠️ 切到 drizzle 迁移时留下的旧库与备份（真实数据，不进仓库）
+navi-legacy-*.db
+navi-pre-drizzle-*.db
+*.db-wal
+*.db-shm
 /public/uploads
 
 # config

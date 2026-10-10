@@ -1,104 +1,114 @@
 import 'server-only'
-import path from 'path'
+import fs from 'node:fs'
+import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { drizzle, type NodeSQLiteDatabase } from 'drizzle-orm/node-sqlite'
-import { migrateTodoDomain } from './todo-migrate'
-import { migrateExecutionDomain } from './execution-migrate'
+import { migrate } from 'drizzle-orm/node-sqlite/migrator'
 
 export type AppDatabase = NodeSQLiteDatabase
 
+/** `.env` 里的 `DB_FILE_NAME=file:local.db` 带 URI 前缀，`node:sqlite` 不认。 */
 const dbPath = process.env.DB_FILE_NAME
   ? process.env.DB_FILE_NAME.replace(/^file:/, '')
   : path.join(process.cwd(), 'local.db')
 
-const sqlite = new DatabaseSync(dbPath)
+/**
+ * ⚠️ 连接**必须是可重开的**，不能是模块级常量。
+ *
+ * 原来这里是 `const sqlite = new DatabaseSync(dbPath)`，而 `closeDatabase()` 里
+ * `sqlite.close()` 把它关掉后**再也开不回来** —— 任何「关库 → 重开」的路径都
+ * 跑不了，症状是 `Failed query` 之类完全指不到「连接已经关了」的报错
+ * （atlas 2026-10-06 踩过同一个坑，那里有完整记录）。
+ *
+ * 所以改成 getter 惰性打开，关掉后置空 —— 下次调用自动重连。
+ * ⚠️ 惰性还带来一个好处：不在 import 时建连接，于是「先设 DB_FILE_NAME 再
+ * 首次打开」这种用法成立（验证脚本正需要）。
+ */
+let connection: DatabaseSync | null = null
 
-let schemaVersionApplied = 0
-const SCHEMA_VERSION = 15
-
-function ensureSchema(): void {
-  if (schemaVersionApplied >= SCHEMA_VERSION) return
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL,
-      updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    DROP TABLE IF EXISTS llm_interaction_logs;
-    DROP TABLE IF EXISTS inbox_items;
-    DROP TABLE IF EXISTS tracker_items;
-    DROP TABLE IF EXISTS agent_sessions;
-    DROP TABLE IF EXISTS agent_presets;
-  `)
-  migrateTodoDomain(sqlite)
-  const todoColumns = sqlite.prepare(`PRAGMA table_info(todos)`).all() as Array<{ name: string }>
-  if (!todoColumns.some((column) => column.name === 'aaaTopicId')) {
-    sqlite.exec(`ALTER TABLE todos ADD COLUMN aaaTopicId TEXT`)
+function sqlite(): DatabaseSync {
+  if (connection) return connection
+  const opened = new DatabaseSync(dbPath)
+  // ⭐ 连接建立时立刻设这几项 —— 它们是**连接级**设置，不是查询级。
+  //
+  // ⚠️ `foreign_keys = ON` **必须在这里设**。SQLite 默认不检查外键，而 todos
+  // 的父子树、todo_tags / todo_time_spans 全靠 `ON DELETE CASCADE` 级联清理。
+  // 少了这一行，「删父节点留下孤儿子树」不会报任何错 —— 这种静默错误比
+  // 停下来问贵得多。（原来这条藏在 todo-migrate.ts 里，只有跑迁移时才设上。）
+  //
+  // ⚠️ `busy_timeout` 是修「读时报 database is locked」的标准解法（默认 0ms
+  // 意味着一撞到锁就立刻报错）。dev server 与脚本常同时开着，没有它就是
+  // 随机失败。
+  //
+  // ⚠️ `journal_mode = WAL` 让读不阻塞写；`synchronous = NORMAL` 是它的配套，
+  // 省掉每次事务的 fsync —— 丢一次事务可以接受，每次 fsync 会让记录变卡。
+  for (const pragma of [
+    'PRAGMA foreign_keys = ON',
+    'PRAGMA busy_timeout = 5000',
+    'PRAGMA journal_mode = WAL',
+    'PRAGMA synchronous = NORMAL',
+  ]) {
+    opened.exec(pragma)
   }
-  sqlite.exec(`
-    DROP TABLE IF EXISTS plan_check_ins;
-    DROP TABLE IF EXISTS plan_occurrences;
-    DROP TABLE IF EXISTS long_term_plans;
-  `)
-  migrateExecutionDomain(sqlite)
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS aaa_topics (
-      id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'registry',
-      question TEXT NOT NULL DEFAULT '', why TEXT NOT NULL DEFAULT '', scope TEXT NOT NULL DEFAULT '',
-      notes TEXT NOT NULL DEFAULT '', plan TEXT NOT NULL DEFAULT '{}', reviewStartedAt TEXT,
-      workingStartedAt TEXT, plannedWeeks INTEGER, exitedAt TEXT, exitType TEXT,
-      completionRating TEXT, distinctions TEXT NOT NULL DEFAULT '[]',
-      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS aaa_entries (
-      id TEXT PRIMARY KEY, topicId TEXT NOT NULL REFERENCES aaa_topics(id) ON DELETE CASCADE,
-      kind TEXT NOT NULL DEFAULT 'capture', content TEXT NOT NULL, week INTEGER, createdAt TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS aaa_entries_topic_idx ON aaa_entries(topicId, createdAt);
-    CREATE UNIQUE INDEX IF NOT EXISTS aaa_one_active_working ON aaa_topics(status) WHERE status = 'working';
-    CREATE INDEX IF NOT EXISTS todos_aaa_topic_idx ON todos(aaaTopicId);
-    UPDATE aaa_topics SET status = 'registry' WHERE status = 'research';
-  `)
-  const aaaColumns = sqlite.prepare(`PRAGMA table_info(aaa_topics)`).all() as Array<{ name: string }>
-  if (!aaaColumns.some((column) => column.name === 'description')) {
-    sqlite.exec(`ALTER TABLE aaa_topics ADD COLUMN description TEXT NOT NULL DEFAULT ''`)
-    sqlite.exec(`UPDATE aaa_topics SET description = COALESCE(NULLIF(question, ''), NULLIF(why, ''), '') WHERE status = 'pool' AND description = ''`)
-  }
-  if (!aaaColumns.some((column) => column.name === 'links')) sqlite.exec(`ALTER TABLE aaa_topics ADD COLUMN links TEXT NOT NULL DEFAULT '[]'`)
-  if (!aaaColumns.some((column) => column.name === 'records')) {
-    sqlite.exec(`ALTER TABLE aaa_topics ADD COLUMN records TEXT NOT NULL DEFAULT '[]'`)
-    const legacy = sqlite.prepare(`SELECT id, links FROM aaa_topics`).all() as Array<{ id: string; links: string }>
-    const update = sqlite.prepare(`UPDATE aaa_topics SET records = ? WHERE id = ?`)
-    for (const row of legacy) {
-      try {
-        const links = JSON.parse(row.links) as unknown
-        if (Array.isArray(links)) update.run(JSON.stringify(links.filter((link): link is string => typeof link === 'string').map((link) => ({ content: '', link }))), row.id)
-      } catch { /* Preserve the original value for manual recovery. */ }
-    }
-  }
-  const entryColumns = sqlite.prepare(`PRAGMA table_info(aaa_entries)`).all() as Array<{ name: string }>
-  if (!entryColumns.some((column) => column.name === 'week')) sqlite.exec(`ALTER TABLE aaa_entries ADD COLUMN week INTEGER`)
-  schemaVersionApplied = SCHEMA_VERSION
+  connection = opened
+  return opened
 }
 
-const globalForDb = globalThis as unknown as {
-  db: AppDatabase | undefined
+/**
+ * 迁移文件的位置。
+ *
+ * ⚠️ 这是**运行时**读的目录，不是构建期打包进 bundle 的资源 —— 容器镜像里
+ * 必须把 `drizzle/` 一起 COPY 进去（Dockerfile 里有这一行，别删）。
+ */
+function migrationsFolder(): string {
+  return path.join(/* turbopackIgnore: true */ process.cwd(), 'drizzle')
 }
 
-export function pingDatabase(): void {
-  ensureSchema()
-  sqlite.prepare('SELECT 1').get()
+const globalForDb = globalThis as unknown as { db: AppDatabase | undefined }
+
+function db(): AppDatabase {
+  if (!globalForDb.db) globalForDb.db = drizzle({ client: sqlite() })
+  return globalForDb.db
+}
+
+let schemaReady = false
+
+/**
+ * ⭐ 结构由 drizzle 迁移建立（`drizzle-kit generate` 产出，`schema.ts` 是唯一真相）。
+ *
+ * ⚠️ **这里不再有第二份建表 SQL，也不再有 SCHEMA_VERSION 常量。** 之前是
+ * 「手写 CREATE TABLE / ALTER TABLE + 一个版本号 + 两个迁移脚本」，而 schema.ts
+ * 是第三份描述 —— 三处各写一遍，改一处漏两处没有任何报错路径。现在唯一一份
+ * 是 schema.ts，运行时自动跑到最新。
+ */
+async function ensureSchema(): Promise<void> {
+  if (schemaReady) return
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+  migrate(db(), { migrationsFolder: migrationsFolder() })
+  schemaReady = true
+}
+
+export async function pingDatabase(): Promise<void> {
+  await ensureSchema()
+  sqlite().prepare('SELECT 1').get()
 }
 
 export async function getDatabase(): Promise<AppDatabase> {
-  ensureSchema()
-  if (!globalForDb.db) {
-    globalForDb.db = drizzle({ client: sqlite })
-  }
-  return globalForDb.db
+  await ensureSchema()
+  return db()
 }
 
 export async function closeDatabase(): Promise<void> {
   globalForDb.db = undefined
-  sqlite.close()
+  // ⚠️ 必须置空 connection —— 否则下次 `sqlite()` 拿到的是已关闭的句柄。
+  connection?.close()
+  connection = null
+  // ⚠️ schemaReady 也必须清零 —— 不然重开后会因为「本进程迁移过了」直接
+  // return，跳过全部迁移。新连接面对的是同一个文件，理应重新确认一次。
+  schemaReady = false
+}
+
+/** 容器启动前先探测数据库可用 —— /healthz 要返回这个。 */
+export function databaseFile(): string {
+  return dbPath
 }

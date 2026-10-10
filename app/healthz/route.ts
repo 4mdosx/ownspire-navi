@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const version = process.env.NAVI_VERSION ?? 'dev'
   try {
-    pingDatabase()
+    await pingDatabase()
     return NextResponse.json({ ok: true, version })
   } catch {
     return NextResponse.json({ ok: false, version }, { status: 503 })

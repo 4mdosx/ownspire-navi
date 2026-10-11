@@ -1,4 +1,4 @@
-# Navi
+# Ownspire Navi
 
 独立的个人 Todo 服务：网页里管理本周 / 今天，并通过 MCP 交给 Agent 操作。
 
@@ -10,7 +10,7 @@
 - **UI**：Radix UI + Tailwind CSS
 - **数据库**：SQLite（Drizzle + Node `node:sqlite`）
 - **认证**：PIN
-- **Agent**：Navi Todo MCP
+- **Agent**：Ownspire Navi Todo MCP
 
 ## 快速开始
 
@@ -43,22 +43,22 @@ TODO_GATEWAY_TOKEN=
 Codex 配置示例（仓库根 `.codex/config.toml`）：
 
 ```toml
-[mcp_servers.navi_todo]
+[mcp_servers.ownspire_navi_todo]
 command = "npm"
 args = ["run", "mcp:todo"]
-cwd = "/Users/token/pre-research/navi"
+cwd = "/Users/token/workspace/ownspire/ownspire-navi"
 startup_timeout_sec = 15
 tool_timeout_sec = 60
 default_tools_approval_mode = "writes"
 
-[mcp_servers.navi_todo.env]
+[mcp_servers.ownspire_navi_todo.env]
 TODO_GATEWAY_URL = "http://127.0.0.1:5500/api/todos/gateway"
 ```
 
 ## 项目结构
 
 ```
-navi/
+ownspire-navi/
 ├── app/            # 页面与 API
 ├── backstage/      # 服务层（todo、执行、db）
 ├── mcp/            # Todo MCP server

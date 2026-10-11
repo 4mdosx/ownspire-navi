@@ -4,7 +4,7 @@ import { pingDatabase } from '@/backstage/db/database'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const version = process.env.NAVI_VERSION ?? 'dev'
+  const version = process.env.OWNSPIRE_NAVI_VERSION ?? 'dev'
   try {
     await pingDatabase()
     return NextResponse.json({ ok: true, version })

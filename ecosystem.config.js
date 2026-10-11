@@ -3,7 +3,7 @@ const path = require('path');
 module.exports = {
   apps: [
     {
-      name: 'navi',
+      name: 'ownspire-navi',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -p 5501',
       cwd: path.resolve(__dirname),

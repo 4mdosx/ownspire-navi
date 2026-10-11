@@ -1,6 +1,6 @@
 /**
  * PIN 重试的指数退避。**四个 ownspire 项目共用同一套参数与算法**
- * （navi / ownspire-raven / ownspire-shrine / creative-atlas）。
+ * （ownspire-navi / ownspire-raven / ownspire-shrine / creative-atlas）。
  *
  * ============================ 为什么是指数退避 ============================
  *

@@ -9,11 +9,11 @@ const inter = localFont({
 })
 
 export const metadata = {
-  title: 'Navi',
+  title: 'Ownspire Navi',
   description: 'Personal todo workspace for agents and humans.',
   appleWebApp: {
     capable: true,
-    title: 'Navi',
+    title: 'Ownspire Navi',
     statusBarStyle: 'default' as const,
   },
 }
@@ -25,7 +25,7 @@ export const viewport: Viewport = {
   interactiveWidget: 'resizes-content',
 }
 
-const themeInitScript = `(function(){try{var t=localStorage.getItem('navi-theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`
+const themeInitScript = `(function(){try{var t=localStorage.getItem('ownspire-navi-theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`
 
 export default function RootLayout({
   children,

@@ -21,10 +21,10 @@ async function gateway(operation: string, args: Record<string, unknown>) {
 }
 
 const server = new McpServer(
-  { name: 'navi-todo', version: '1.0.0' },
+  { name: 'ownspire-navi-todo', version: '1.0.0' },
   {
     instructions:
-      'Navi Todo tasks are independent records. Associate them with parents via parentId and with day/week via time links. Day and week are views, not folders. Capture work as written, do not auto-split or invent estimates. Hang derived subtasks under the current parent. Read a todo before updating it and pass version on writes.',
+      'Ownspire Navi Todo tasks are independent records. Associate them with parents via parentId and with day/week via time links. Day and week are views, not folders. Capture work as written, do not auto-split or invent estimates. Hang derived subtasks under the current parent. Read a todo before updating it and pass version on writes.',
   }
 )
 
@@ -38,7 +38,7 @@ const timeGrain = z.enum(['day', 'week', 'horizon'])
 const timeLink = z.object({ grain: timeGrain, date: z.string().min(1) })
 
 server.registerTool('todo_list', {
-  description: 'List and search Navi todos.',
+  description: 'List and search Ownspire Navi todos.',
   inputSchema: {
     grain: timeGrain.optional(), date: z.string().optional(),
     parentId: z.string().nullable().optional(), status: status.optional(), kind: kind.optional(),
@@ -54,7 +54,7 @@ server.registerTool('todo_get', {
 }, async (args) => result(await gateway('todo.get', args)))
 
 server.registerTool('todo_create', {
-  description: 'Create a root todo or subtask in the canonical Navi Todo domain.',
+  description: 'Create a root todo or subtask in the canonical Ownspire Navi Todo domain.',
   inputSchema: {
     title: z.string().min(1), description: z.string().optional(), content: z.string().optional(),
     parentId: z.string().nullable().optional(), status: status.optional(),
@@ -94,7 +94,7 @@ server.registerTool('todo_move', {
 }, async (args) => result(await gateway('todo.move', args)))
 
 server.registerTool('todo_import_outline', {
-  description: 'Import a weekly notes-style outline into Navi as nested tasks and notes. Checkmarks become done. Do not auto-split items.',
+  description: 'Import a weekly notes-style outline into Ownspire Navi as nested tasks and notes. Checkmarks become done. Do not auto-split items.',
   inputSchema: {
     text: z.string().min(1),
     weekStart: z.string().optional(),

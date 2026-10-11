@@ -16,6 +16,6 @@ export function notifySessionEnded(todo: Pick<Todo, 'id' | 'kind' | 'title'>) {
   const minutes = sessionLimitMinutes(todo.kind)
   new Notification(rest ? '休息结束' : '任务结束', {
     body: rest ? `${minutes} 分钟到了。` : `「${todo.title}」已到 ${minutes} 分钟。`,
-    tag: rest ? 'navi-rest-ended' : `navi-task-ended-${todo.id}`,
+    tag: rest ? 'ownspire-navi-rest-ended' : `ownspire-navi-task-ended-${todo.id}`,
   })
 }

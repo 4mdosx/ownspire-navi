@@ -15,10 +15,10 @@ FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35
 
 WORKDIR /app
 
-ARG NAVI_VERSION=dev
+ARG OWNSPIRE_NAVI_VERSION=dev
 ENV NODE_ENV=production
 ENV PORT=5500
-ENV NAVI_VERSION=$NAVI_VERSION
+ENV OWNSPIRE_NAVI_VERSION=$OWNSPIRE_NAVI_VERSION
 
 COPY --from=build --chown=node:node /app/package.json ./
 COPY --from=build --chown=node:node /app/next.config.js ./

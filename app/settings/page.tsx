@@ -6,7 +6,7 @@ import SettingsWorkspace from './settings-workspace'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: '设置 · Navi',
+  title: '设置 · Ownspire Navi',
 }
 
 export default async function SettingsPage() {

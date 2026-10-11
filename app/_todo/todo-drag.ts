@@ -1,5 +1,5 @@
-export const OUTLINE_DRAG_TYPE = 'application/x-navi-outline-todo'
-export const WORKSPACE_DRAG_TYPE = 'application/x-navi-workspace-todo'
+export const OUTLINE_DRAG_TYPE = 'application/x-ownspire-navi-outline-todo'
+export const WORKSPACE_DRAG_TYPE = 'application/x-ownspire-navi-workspace-todo'
 
 export function dragTypesOf(event: React.DragEvent): string[] {
   return Array.from(event.dataTransfer.types)

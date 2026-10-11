@@ -1,4 +1,4 @@
-export const THEME_STORAGE_KEY = 'navi-theme'
+export const THEME_STORAGE_KEY = 'ownspire-navi-theme'
 export type ColorTheme = 'light' | 'dark'
 
 const listeners = new Set<() => void>()

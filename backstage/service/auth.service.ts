@@ -1,4 +1,8 @@
-'use server'
+// ⚠️ 本文件刻意 **不加** `'use server'`。
+// 它是服务层，导出了 `PinLockError`（类）以及 `recordLoginFailure` / `recordLoginSuccess`
+// （同步函数）；而 `'use server'` 文件只允许导出 async 函数，否则 Next 构建会报
+// "Only async functions are allowed to be exported in a \"use server\" file"。
+// server action 的边界在 `app/actions/auth.ts`，由它包装这些服务层函数。
 import 'server-only'
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -138,7 +142,7 @@ export async function deleteSession() {
 }
 
 /**
- * ⚠️ **navi 与其他三个项目的差异**：这里是 server action，拿不到 `Request` 对象，
+ * ⚠️ **ownspire-navi 与其他三个项目的差异**：这里是 server action，拿不到 `Request` 对象，
  * 所以 IP 要从 `headers()` 里读。取值口径与其他三个项目一致（XFF 第一个值）。
  */
 async function clientKey(): Promise<string> {
@@ -234,7 +238,7 @@ export async function updatePin(
 // ---------------------------------------------------------------------------
 
 /**
- * 退避锁定的错误。navi 的三个动作返回 `{ok:false, errors}` 而不是抛异常
+ * 退避锁定的错误。ownspire-navi 的三个动作返回 `{ok:false, errors}` 而不是抛异常
  * （server action 的约定），所以这里把「被锁定」也表达成 errors 里的一个字段，
  * 由界面读 `lockRemainingMs()` 显示剩余时间。
  *

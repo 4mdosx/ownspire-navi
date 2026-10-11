@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { INCLUDE_ALL, type FocusMode, type Tag } from '@/types/tag'
 import type { Todo } from '@/types/todo'
 
-const ACTIVE_FOCUS_KEY = 'navi-active-focus-mode'
+const ACTIVE_FOCUS_KEY = 'ownspire-navi-active-focus-mode'
 
 type CreateFocusInput = {
   name: string

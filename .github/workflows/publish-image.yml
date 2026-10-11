@@ -23,13 +23,13 @@ jobs:
         run: |
           sha="$(git rev-parse --short=7 HEAD)"
           docker build --platform linux/amd64 \
-            --build-arg "NAVI_VERSION=${sha}" \
-            --tag "ghcr.io/4mdosx/navi:${sha}" \
-            --tag ghcr.io/4mdosx/navi:main \
+            --build-arg "OWNSPIRE_NAVI_VERSION=${sha}" \
+            --tag "ghcr.io/4mdosx/ownspire-navi:${sha}" \
+            --tag ghcr.io/4mdosx/ownspire-navi:main \
             .
           echo "IMAGE_SHA=${sha}" >> "$GITHUB_ENV"
 
       - name: Push image
         run: |
-          docker push "ghcr.io/4mdosx/navi:${IMAGE_SHA}"
-          docker push ghcr.io/4mdosx/navi:main
+          docker push "ghcr.io/4mdosx/ownspire-navi:${IMAGE_SHA}"
+          docker push ghcr.io/4mdosx/ownspire-navi:main

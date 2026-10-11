@@ -1,5 +1,5 @@
 {
-  "name": "navi",
+  "name": "ownspire-navi",
   "version": "1.0.1",
   "private": true,
   "engines": {
@@ -18,10 +18,10 @@
     "db:import-legacy": "node --conditions react-server --import tsx scripts/import-from-legacy.ts",
     "mcp:todo": "tsx mcp/todo-server.ts",
     "pm2:start": "next build && pm2 start ecosystem.config.js",
-    "pm2:stop": "pm2 stop navi",
-    "pm2:restart": "pm2 restart navi",
-    "pm2:delete": "pm2 delete navi",
-    "pm2:logs": "pm2 logs navi",
+    "pm2:stop": "pm2 stop ownspire-navi",
+    "pm2:restart": "pm2 restart ownspire-navi",
+    "pm2:delete": "pm2 delete ownspire-navi",
+    "pm2:logs": "pm2 logs ownspire-navi",
     "pm2:monit": "pm2 monit"
   },
   "dependencies": {
